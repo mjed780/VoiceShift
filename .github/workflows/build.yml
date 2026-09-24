@@ -24,13 +24,16 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android platform 34
+      - name: Prepare Android SDK
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          SM=$(command -v sdkmanager || true)
+          if [ -z "$SM" ]; then
+            SM=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -type f -name sdkmanager 2>/dev/null | head -1)
+          fi
+          echo "sdkmanager = $SM"
+          yes | "$SM" --licenses > /dev/null 2>&1 || true
+          "$SM" "platforms;android-34" "build-tools;34.0.0"
+          ls "$ANDROID_HOME/platforms"
 
       - name: Fetch Xposed API jar
         run: |
