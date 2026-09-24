@@ -1,0 +1,60 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform 34
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Fetch Xposed API jar
+        run: |
+          mkdir -p app/libs
+          for i in 1 2 3; do
+            curl -fsSL -o app/libs/api-82.jar "https://api.xposed.info/de/robv/android/xposed/api/82/api-82.jar" && break
+            sleep 3
+          done
+          ls -l app/libs/api-82.jar
+          unzip -l app/libs/api-82.jar | grep -q "XposedBridge" && echo "API jar OK"
+
+      - name: Fetch Sonic.java
+        run: |
+          mkdir -p app/src/main/java/sonic
+          curl -fsSL -o app/src/main/java/sonic/Sonic.java "https://raw.githubusercontent.com/waywardgeek/sonic/master/Sonic.java"
+          grep -q "package sonic;" app/src/main/java/sonic/Sonic.java && echo "Sonic OK"
+          wc -l app/src/main/java/sonic/Sonic.java
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FemaleShift-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
